@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习进度可视化</title>
+  <style>
+    :root {
+      --bg: #e9edf3;
+      --panel: #fdfefe;
+      --border: #d5dbe3;
+      --text: #1c1c1e;
+      --muted: #6b7280;
+      --empty: #eef1f6;
+      --fill: #34c759;
+      --hover: #2fb24f;
+      --warn: #ff3b30;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 20% 20%, #f6f7fb, #e9edf3 45%, #dfe5ef);
+      color: var(--text);
+      font-family: "SF Pro Display", "Segoe UI", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+    .card {
+      width: min(960px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      letter-spacing: 0.4px;
+    }
+    p.desc {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #f7f9fc;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input[type="number"]:focus {
+      border-color: #9ac5ff;
+      box-shadow: 0 0 0 3px rgba(80, 156, 255, 0.16);
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      margin: 0;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: #f2f4f8;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.06s ease, box-shadow 0.15s ease, background 0.15s ease;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    button:hover { background: #e8ecf3; }
+    button:active { transform: translateY(1px); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    button.secondary { background: #ffffff; }
+    button.danger { background: var(--warn); color: #fff; border-color: transparent; box-shadow: 0 10px 24px rgba(255, 59, 48, 0.2); }
+    .status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0 10px;
+      color: var(--muted);
+      font-size: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .grid-wrap {
+      overflow-x: auto;
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 14px);
+      grid-auto-rows: 14px;
+      gap: 6px;
+      min-height: 96px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: linear-gradient(135deg, #f7f9fc 0%, #eef2f7 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      width: max-content;
+    }
+    .cell {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: var(--empty);
+      border: 1px solid #e0e5ed;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
+      transition: background 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+    }
+    .cell.done { background: var(--fill); border-color: #27ac4d; box-shadow: 0 8px 18px rgba(46, 199, 89, 0.2); }
+    .cell:hover { transform: scale(1.08); box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08); }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+    .history {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .history-header {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+      letter-spacing: 0.2px;
+    }
+    .history-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+    .history-list li {
+      padding: 10px 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .history-list .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .history-list .empty {
+      justify-content: center;
+      color: var(--muted);
+      font-style: italic;
+      box-shadow: none;
+      background: #f7f9fc;
+    }
+    .history-list .actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 10px;
+    }
+    .history-list button.ghost {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: none;
+    }
+    .history-list button.ghost:hover {
+      color: var(--text);
+      background: #f2f4f8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>学习进度可视化</h1>
+    <p class="desc">先设置本次练习的题目总数，每完成一题点击按钮，下面的格子会像 GitHub 贡献一样逐个点亮。</p>
+
+    <div class="controls">
+      <label for="totalInput">本次总题数</label>
+      <input id="totalInput" type="number" min="1" placeholder="例如 30" />
+      <button id="setTotalBtn">设置总题数</button>
+      <button id="finishBtn">完成一题</button>
+      <button id="recordPartialBtn" class="secondary">记录当前完成</button>
+    </div>
+    <div class="controls" style="grid-template-columns: auto 1fr auto;">
+      <label for="doneInput">手动填写已完成</label>
+      <input id="doneInput" type="number" min="0" placeholder="如 20（可超过总题数）" />
+      <button id="applyDoneBtn">更新已完成</button>
+    </div>
+
+    <div class="status">
+      <span id="progressText">当前未设置题目数量</span>
+      <div>
+        <button class="secondary" id="resetBtn">重置进度</button>
+      </div>
+    </div>
+
+    <div class="grid-wrap">
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="hint">数据保存在本地浏览器，不会丢失。重新开始请点击“重置进度”。</div>
+    <div class="history">
+      <div class="history-header">完成记录</div>
+      <ul id="recordList" class="history-list"></ul>
+    </div>
+  </div>
+
+  <script>
+    const totalInput = document.querySelector("#totalInput");
+    const setTotalBtn = document.querySelector("#setTotalBtn");
+    const finishBtn = document.querySelector("#finishBtn");
+    const recordPartialBtn = document.querySelector("#recordPartialBtn");
+    const doneInput = document.querySelector("#doneInput");
+    const applyDoneBtn = document.querySelector("#applyDoneBtn");
+    const resetBtn = document.querySelector("#resetBtn");
+    const grid = document.querySelector("#grid");
+    const progressText = document.querySelector("#progressText");
+    const recordList = document.querySelector("#recordList");
+
+    let state = { total: 0, done: 0, records: [] };
+
+    const STORAGE_KEY = "study-progress";
+
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        if (Number.isInteger(saved.total) && saved.total > 0) {
+          state.total = saved.total;
+          state.done = Math.min(saved.done || 0, saved.total);
+          totalInput.value = state.total;
+        }
+        if (Array.isArray(saved.records)) {
+          state.records = saved.records
+            .filter((r) => Number.isInteger(r.total) && typeof r.finishedAt === "string")
+            .slice(0, 200);
+        }
+      } catch (_) {
+        // ignore malformed storage
+      }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function updateUI() {
+      grid.innerHTML = "";
+      if (state.total <= 0) {
+        progressText.textContent = "当前未设置题目数量";
+        finishBtn.disabled = true;
+        resetBtn.disabled = true;
+        renderRecords();
+        return;
+      }
+      finishBtn.disabled = false;
+      resetBtn.disabled = false;
+      progressText.textContent = `已完成 ${state.done} / ${state.total} 题（${Math.floor((state.done / state.total) * 100)}%）`;
+
+      for (let i = 0; i < state.total; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell" + (i < state.done ? " done" : "");
+        grid.appendChild(cell);
+      }
+      renderRecords();
+    }
+
+    function setTotal() {
+      const value = parseInt(totalInput.value, 10);
+      if (!Number.isInteger(value) || value <= 0) {
+        alert("请输入大于 0 的数字作为总题数。");
+        return;
+      }
+      state.total = value;
+      state.done = Math.min(state.done, state.total);
+      persist();
+      updateUI();
+    }
+
+    function finishOne() {
+      if (state.total <= 0) return;
+      const prev = state.done;
+      state.done += 1;
+      if (prev < state.total && state.done >= state.total) {
+        addCompletionRecord(state.done);
+      }
+      persist();
+      updateUI();
+    }
+
+    function applyDoneValue() {
+      const value = parseInt(doneInput.value, 10);
+      if (!Number.isFinite(value) || value < 0) {
+        alert("请输入大于等于 0 的数字作为已完成数量。");
+        return;
+      }
+      const prev = state.done;
+      state.done = value;
+      if (state.total > 0 && prev < state.total && state.done >= state.total) {
+        addCompletionRecord(state.done);
+      }
+      persist();
+      updateUI();
+    }
+
+    function recordPartial() {
+      if (state.total <= 0) {
+        alert("请先设置本次总题数。");
+        return;
+      }
+      addCompletionRecord(state.done);
+      persist();
+      renderRecords();
+    }
+
+    function resetAll() {
+      if (state.total === 0 && state.done === 0) return;
+      const ok = confirm("确定要重置本次进度吗？");
+      if (!ok) return;
+      state = { total: 0, done: 0, records: state.records };
+      totalInput.value = "";
+      persist();
+      updateUI();
+    }
+
+    function addCompletionRecord(doneValue = state.done) {
+      const record = {
+        total: state.total,
+        done: doneValue,
+        finishedAt: new Date().toISOString(),
+      };
+      state.records = [record, ...(state.records || [])].slice(0, 200);
+    }
+
+    function renderRecords() {
+      recordList.innerHTML = "";
+      if (!state.records || state.records.length === 0) {
+        const li = document.createElement("li");
+        li.className = "empty";
+        li.textContent = "暂无完成记录";
+        recordList.appendChild(li);
+        return;
+      }
+      state.records.forEach((r, idx) => {
+        const li = document.createElement("li");
+        const title = document.createElement("span");
+        const doneText = Number.isFinite(r.done) ? r.done : r.total;
+        title.textContent = `完成 ${doneText} / ${r.total} 题`;
+        const meta = document.createElement("span");
+        meta.className = "meta";
+        meta.textContent = formatTime(r.finishedAt);
+        const actions = document.createElement("span");
+        actions.className = "actions";
+        const del = document.createElement("button");
+        del.className = "ghost";
+        del.textContent = "删除";
+        del.addEventListener("click", () => deleteRecord(idx));
+        actions.appendChild(del);
+        li.appendChild(title);
+        li.appendChild(meta);
+        li.appendChild(actions);
+        recordList.appendChild(li);
+      });
+    }
+
+    function deleteRecord(index) {
+      if (!Array.isArray(state.records)) return;
+      state.records = state.records.filter((_, i) => i !== index);
+      persist();
+      renderRecords();
+    }
+
+    function formatTime(iso) {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString("zh-CN", { hour12: false });
+    }
+
+    setTotalBtn.addEventListener("click", setTotal);
+    finishBtn.addEventListener("click", finishOne);
+    recordPartialBtn.addEventListener("click", recordPartial);
+    resetBtn.addEventListener("click", resetAll);
+    applyDoneBtn.addEventListener("click", applyDoneValue);
+    totalInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") setTotal();
+    });
+    doneInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") applyDoneValue();
+    });
+
+    load();
+    updateUI();
+  </script>
+</body>
+</html>
+
